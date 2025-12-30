@@ -4,6 +4,9 @@ import 'package:flutter_ai/core/services/notification_service.dart';
 import 'package:flutter_ai/injection_container.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_ai/models/order_model.dart';
+import 'package:flutter_ai/presentation/widgets/order_card.dart';
+import 'package:flutter_ai/presentation/screens/all_orders_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // State
   bool _isListening = false;
+  final List<OrderModel> _orders = [];
 
   // Colors from design
   static const Color _primary = Color(0xFF13ec5b);
@@ -33,6 +37,26 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _textController.text =
         "I'd like a cappuccino with oat milk, extra hot please.";
+    _initDummyOrders();
+  }
+
+  void _initDummyOrders() {
+    _orders.add(
+      OrderModel(
+        id: '1',
+        item: 'Double Espresso',
+        timestamp: DateTime.now().subtract(const Duration(hours: 3)),
+        status: OrderStatus.pending,
+      ),
+    );
+    _orders.add(
+      OrderModel(
+        id: '2',
+        item: 'Green Tea',
+        timestamp: DateTime.now().subtract(const Duration(days: 1)),
+        status: OrderStatus.received,
+      ),
+    );
   }
 
   @override
@@ -224,10 +248,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w500,
                   height: 1.5,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.all(16),
-                  hintText: "Listening...",
+                  hintText: _isListening ? "Listening..." : "Tap to speak",
                 ),
               ),
               Positioned(
@@ -252,10 +276,24 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ElevatedButton(
         onPressed: () async {
           await _stopListening();
+          if (_textController.text.trim().isEmpty) return;
+
+          final newOrder = OrderModel(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            item: _textController.text.trim(),
+            timestamp: DateTime.now(),
+            status: OrderStatus.pending,
+          );
+
+          setState(() {
+            _orders.insert(0, newOrder);
+            _textController.clear();
+          });
+
           _notificationService.showNotification(
             id: 0,
             title: 'Order Sent',
-            body: 'Your order has been sent to the Office Assistant',
+            body: 'Ordered: ${newOrder.item}',
           );
         },
         style: ElevatedButton.styleFrom(
@@ -300,7 +338,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AllOrdersScreen(orders: _orders),
+                  ),
+                );
+              },
               child: Text(
                 "View All",
                 style: GoogleFonts.inter(
@@ -313,115 +358,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        _buildActivityItem(
-          icon: Icons.coffee,
-          title: "Double Espresso",
-          time: "Today, 10:00 AM",
-          status: "Pending",
-          statusColor: Colors.orange,
-          iconBgColor: Colors.orange.shade50,
-          statusBgColor: Colors.orange.shade50,
-        ),
-        const SizedBox(height: 12),
-        _buildActivityItem(
-          icon: Icons.local_cafe,
-          title: "Green Tea",
-          time: "Yesterday",
-          status: "Received",
-          statusColor: Colors.green,
-          iconBgColor: Colors.green.shade50,
-          statusBgColor: _primary.withOpacity(0.1),
-          isDone: true,
-        ),
+        if (_orders.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "No recent orders",
+              style: GoogleFonts.inter(color: _textSub),
+            ),
+          )
+        else
+          ListView.separated(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _orders.length > 3 ? 3 : _orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              return OrderCard(order: _orders[index]);
+            },
+          ),
       ],
-    );
-  }
-
-  Widget _buildActivityItem({
-    required IconData icon,
-    required String title,
-    required String time,
-    required String status,
-    required Color statusColor,
-    required Color iconBgColor,
-    required Color statusBgColor,
-    bool isDone = false,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surfaceLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: statusColor),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    color: _textMain,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  time,
-                  style: GoogleFonts.inter(color: _textSub, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusBgColor,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                if (!isDone)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    margin: const EdgeInsets.only(right: 6),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                if (isDone)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Icon(Icons.done_all, size: 16, color: statusColor),
-                  ),
-                Text(
-                  status,
-                  style: GoogleFonts.inter(
-                    color: statusColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
