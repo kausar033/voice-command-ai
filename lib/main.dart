@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_ai/injection_container.dart' as di;
-import 'package:flutter_ai/presentation/cubit/task_cubit.dart';
 import 'package:flutter_ai/presentation/screens/home_screen.dart';
 import 'package:flutter_ai/core/services/notification_service.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,26 +16,23 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => di.sl<TaskCubit>(),
-      child: MaterialApp(
-        title: 'Voice Order',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color(0xFFf6f8f6),
-          primaryColor: const Color(0xFF13ec5b),
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF13ec5b),
-            surface: Color(0xFFffffff),
-            onSurface: Color(0xFF111813),
-            secondary: Color(0xFF13ec5b),
-          ),
-          textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
-          useMaterial3: true,
+    return MaterialApp(
+      title: 'Voice Order',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFf6f8f6),
+        primaryColor: const Color(0xFF13ec5b),
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF13ec5b),
+          surface: Color(0xFFffffff),
+          onSurface: Color(0xFF111813),
+          secondary: Color(0xFF13ec5b),
         ),
-        home: const HomeScreen(),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        useMaterial3: true,
       ),
+      home: const HomeScreen(),
     );
   }
 }

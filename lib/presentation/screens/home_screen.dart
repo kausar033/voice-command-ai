@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ai/core/services/stt_service.dart';
-import 'package:flutter_ai/core/services/tts_service.dart';
 import 'package:flutter_ai/core/services/notification_service.dart';
 import 'package:flutter_ai/injection_container.dart';
 import 'package:avatar_glow/avatar_glow.dart';
@@ -58,9 +57,13 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } else {
-      setState(() => _isListening = false);
-      _sttService.stop();
+      await _stopListening();
     }
+  }
+
+  Future<void> _stopListening() async {
+    setState(() => _isListening = false);
+    await _sttService.stop();
   }
 
   @override
@@ -105,17 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {},
-              borderRadius: BorderRadius.circular(50),
-              child: const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Icon(Icons.arrow_back, color: _textMain, size: 24),
-              ),
-            ),
-          ),
+          SizedBox(width: 8),
           Text(
             "New Order",
             style: GoogleFonts.inter(
@@ -257,7 +250,8 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: () {
+        onPressed: () async {
+          await _stopListening();
           _notificationService.showNotification(
             id: 0,
             title: 'Order Sent',
