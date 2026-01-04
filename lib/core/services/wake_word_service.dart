@@ -24,7 +24,7 @@ class WakeWordService {
 
   void _wakeWordCallback(int keywordIndex) {
     if (keywordIndex == 0) {
-      debugPrint('Wake word "Hey Man" detected!');
+      debugPrint('Wake word "Hey Bad" detected!');
       _onWake?.call();
     }
   }
