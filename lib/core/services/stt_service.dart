@@ -3,18 +3,25 @@ import 'package:flutter/foundation.dart';
 
 class SttService {
   final SpeechToText _speechToText = SpeechToText();
+  final ValueNotifier<String> statusNotifier = ValueNotifier("");
   bool _isAvailable = false;
 
   Future<bool> init() async {
     _isAvailable = await _speechToText.initialize(
-      onError: (val) => debugPrint('onError: $val'),
-      onStatus: (val) => debugPrint('onStatus: $val'),
+      onError: (val) {
+        debugPrint('onError: $val');
+        statusNotifier.value = "error";
+      },
+      onStatus: (val) {
+        debugPrint('onStatus: $val');
+        statusNotifier.value = val;
+      },
     );
     return _isAvailable;
   }
 
   Future<void> listen({
-    required Function(String) onResult,
+    required Function(String text, bool isFinal) onResult,
     required String localeId,
   }) async {
     if (!_isAvailable) {
@@ -24,11 +31,13 @@ class SttService {
 
     await _speechToText.listen(
       onResult: (result) {
-        if (result.finalResult) {
-          onResult(result.recognizedWords);
-        }
+        onResult(result.recognizedWords, result.finalResult);
       },
       localeId: localeId,
+      listenFor: const Duration(seconds: 30),
+      pauseFor: const Duration(seconds: 10),
+      cancelOnError: false,
+      partialResults: true,
     );
   }
 
