@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_ai/core/services/stt_service.dart';
 import 'package:flutter_ai/core/services/notification_service.dart';
+import 'package:flutter_ai/core/services/wake_word_service.dart';
 import 'package:flutter_ai/injection_container.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_ai/models/order_model.dart';
 import 'package:flutter_ai/presentation/widgets/order_card.dart';
 import 'package:flutter_ai/presentation/screens/all_orders_screen.dart';
+import 'package:porcupine_flutter/porcupine_error.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Services
   final SttService _sttService = sl<SttService>();
   final NotificationService _notificationService = sl<NotificationService>();
+  final WakeWordService _wakeWordService = sl<WakeWordService>();
   final TextEditingController _textController = TextEditingController();
 
   // State
@@ -38,6 +42,47 @@ class _HomeScreenState extends State<HomeScreen> {
     _textController.text =
         "I'd like a cappuccino with oat milk, extra hot please.";
     _initDummyOrders();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    await Permission.microphone.request();
+    // After permission is handled (or if already granted), start wake word
+    _initWakeWord();
+  }
+
+  Future<void> _initWakeWord() async {
+    try {
+      await _wakeWordService.init(() async {
+        // Pause wake word listening via service or just toggle
+        await _wakeWordService.stopListening();
+        if (mounted) {
+          _toggleListening();
+        }
+      });
+      // Start listening for wake word immediately
+      await _wakeWordService.startListening();
+    } on PorcupineActivationLimitException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Wake word limit reached. Try a new AccessKey."),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Wake word error: $e"),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   void _initDummyOrders() {
@@ -62,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _textController.dispose();
+    _wakeWordService.dispose();
     super.dispose();
   }
 
@@ -81,13 +127,16 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } else {
-      await _stopListening();
+      await _stopListening(restartWakeWord: true);
     }
   }
 
-  Future<void> _stopListening() async {
+  Future<void> _stopListening({bool restartWakeWord = true}) async {
     setState(() => _isListening = false);
     await _sttService.stop();
+    if (restartWakeWord) {
+      await _wakeWordService.startListening();
+    }
   }
 
   @override
@@ -147,13 +196,8 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.grey[200],
-              image: const DecorationImage(
-                image: NetworkImage(
-                  "https://lh3.googleusercontent.com/aida-public/AB6AXuD5HaGqbPper0Rpzm5tdaLe67VZISmFOqnCu4WmaJIA-nKBTtNql_MSxVaOiIY4T9GL2nKd_Z7BAXoxYYzL0FRuPNYkPFBseQVfF9O75Q8lUbW2BmrMu7zLhuwTg7OxfLMOWz7rK9-EUfMYPkm_UsFpIlCfIEvyBboPnw8ymuCCNfPRPFf7i8Oyx3TzIJEUBIUI-5iCXHVacLkmU5u0-nhH42JxOHbaLZeFWpXmTCEAmv1uSY48_ihuAVXT_4kMtLsUOIF_JIMy4Io",
-                ),
-                fit: BoxFit.cover,
-              ),
             ),
+            child: Icon(Icons.person, color: _textMain),
           ),
         ],
       ),
@@ -275,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 56,
       child: ElevatedButton(
         onPressed: () async {
-          await _stopListening();
+          await _stopListening(restartWakeWord: true);
           if (_textController.text.trim().isEmpty) return;
 
           final newOrder = OrderModel(
