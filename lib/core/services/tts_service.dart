@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_tts/flutter_tts.dart';
 
 class TtsService {
@@ -11,7 +12,12 @@ class TtsService {
   }
 
   Future<void> speak(String text) async {
+    Completer<void> completer = Completer<void>();
+    _flutterTts.setCompletionHandler(() {
+      completer.complete();
+    });
     await _flutterTts.speak(text);
+    return completer.future;
   }
 
   Future<void> stop() async {

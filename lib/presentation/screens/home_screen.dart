@@ -57,13 +57,21 @@ class _HomeScreenState extends State<HomeScreen> {
       final status = _sttService.statusNotifier.value;
       debugPrint("STT Status: $status");
       if (status == 'notListening' || status == 'done' || status == 'error') {
-        // Only reset if we are NOT currently processing a valid final command
-        if (_isListening && !_isCommandProcessing) {
-          debugPrint(
-            "Status $status received and not processing command. Resetting.",
-          );
-          _stopListening(restartWakeWord: true);
-        }
+        // Wait briefly to allow final result to win the race and set _isCommandProcessing
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && _isListening && !_isCommandProcessing) {
+            debugPrint(
+              "Status $status received and not processing. State: $_voiceState",
+            );
+            // Only auto-reset to Idle if we were listening for a new command
+            if (_voiceState == VoiceAppState.listeningCommand) {
+              _stopListening(restartWakeWord: true);
+            } else {
+              // In confirming state, just toggle the listening flag so UI reflects it
+              setState(() => _isListening = false);
+            }
+          }
+        });
       }
     });
   }
@@ -131,10 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _toggleListening() async {
     if (!_isListening) {
+      await _wakeWordService.stopListening(); // Stop wake word on manual tap
       bool available = await _sttService.init();
       if (available) {
         setState(() {
           _isListening = true;
+          _isCommandProcessing = false;
           _voiceState =
               VoiceAppState.listeningCommand; // Start listening for command
         });
@@ -176,6 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         debugPrint("Asking for confirmation...");
+        // Await the TTS to finish before listening back
         await _ttsService.speak("I heard $text. Confirm or Cancel?");
         debugPrint("TTS finished, listening for confirmation...");
 
@@ -196,31 +207,9 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _voiceState = VoiceAppState.idle);
       } else if (lowerText.contains("cancel") || lowerText.contains("no")) {
         debugPrint("Cancelled!");
-        await _stopListening(restartWakeWord: false);
-        await _ttsService.speak("Cancelled. What would you like?");
+        await _stopListening(restartWakeWord: true);
+        await _ttsService.speak("Cancelled.");
         _textController.clear();
-
-        setState(() {
-          _voiceState = VoiceAppState.listeningCommand;
-          _isListening = true;
-        });
-
-        _sttService.listen(
-          onResult: (val, isFinal) {
-            setState(() {
-              if (_voiceState == VoiceAppState.listeningCommand) {
-                _textController.text = val;
-              }
-            });
-            if (isFinal) {
-              if (val.trim().isNotEmpty) {
-                _isCommandProcessing = true;
-              }
-              _handleVoiceInput(val);
-            }
-          },
-          localeId: "en_US",
-        );
       } else {
         debugPrint("Unclear response: $text");
         await _stopListening(restartWakeWord: false);
@@ -234,7 +223,10 @@ class _HomeScreenState extends State<HomeScreen> {
     debugPrint("Starting confirmation listener...");
     bool available = await _sttService.init();
     if (available) {
-      setState(() => _isListening = true);
+      setState(() {
+        _isListening = true;
+        _isCommandProcessing = false;
+      });
       _sttService.listen(
         onResult: (val, isFinal) {
           if (isFinal) {
@@ -296,6 +288,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     children: [
                       _buildVoiceInputSection(),
+                      if (_voiceState == VoiceAppState.confirming)
+                        _buildConfirmationStatus(),
                       _buildtranscriptionArea(),
                       const SizedBox(height: 24),
                       _buildPlaceOrderButton(),
@@ -309,6 +303,57 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmationStatus() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _primary.withOpacity(0.5), width: 2),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.help_outline, color: _primary, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Confirm Order?",
+                  style: GoogleFonts.inter(
+                    color: _textMain,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  "Say 'Confirm' or 'Cancel'",
+                  style: GoogleFonts.inter(
+                    color: _textSub,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => _stopListening(restartWakeWord: true),
+            child: Text(
+              "RESET",
+              style: GoogleFonts.inter(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
