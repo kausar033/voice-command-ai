@@ -51,7 +51,6 @@ dependencies:
   avatar_glow: ^3.0.1
   google_fonts: ^6.3.3
   flutter_local_notifications: ^19.5.0
-  porcupine_flutter: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -79,7 +78,6 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/picovoice_wake_word.ppn
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

@@ -16,10 +16,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
     
-    // Safety: ensure .ppn files are not compressed in release builds
-    androidResources {
-        noCompress.add("ppn")
-    }
 
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()

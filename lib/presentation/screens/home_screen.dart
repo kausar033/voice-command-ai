@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_ai/core/services/stt_service.dart';
 import 'package:flutter_ai/core/services/notification_service.dart';
-import 'package:flutter_ai/core/services/wake_word_service.dart';
 import 'package:flutter_ai/injection_container.dart';
 import 'package:avatar_glow/avatar_glow.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_ai/models/order_model.dart';
 import 'package:flutter_ai/presentation/widgets/order_card.dart';
 import 'package:flutter_ai/presentation/screens/all_orders_screen.dart';
-import 'package:porcupine_flutter/porcupine_error.dart';
 import 'package:flutter_ai/core/services/tts_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -26,7 +24,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // Services
   final SttService _sttService = sl<SttService>();
   final NotificationService _notificationService = sl<NotificationService>();
-  final WakeWordService _wakeWordService = sl<WakeWordService>();
   final TtsService _ttsService = sl<TtsService>(); // Inject TTS
   final TextEditingController _textController = TextEditingController();
 
@@ -65,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
             );
             // Only auto-reset to Idle if we were listening for a new command
             if (_voiceState == VoiceAppState.listeningCommand) {
-              _stopListening(restartWakeWord: true);
+              _stopListening();
             } else {
               // In confirming state, just toggle the listening flag so UI reflects it
               setState(() => _isListening = false);
@@ -78,44 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _requestPermissions() async {
     await Permission.microphone.request();
-    // After permission is handled (or if already granted), start wake word
-    _initWakeWord();
-  }
-
-  Future<void> _initWakeWord() async {
-    try {
-      await _wakeWordService.init(() async {
-        // Pause wake word listening via service or just toggle
-        await _wakeWordService.stopListening();
-        if (mounted) {
-          // Feedback so user knows to speak
-          await HapticFeedback.mediumImpact();
-          _toggleListening();
-        }
-      });
-      // Start listening for wake word immediately
-      await _wakeWordService.startListening();
-    } on PorcupineActivationLimitException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Wake word limit reached. Try a new AccessKey."),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Wake word error: $e"),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
   }
 
   void _initDummyOrders() {
@@ -139,7 +98,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _toggleListening() async {
     if (!_isListening) {
-      await _wakeWordService.stopListening(); // Stop wake word on manual tap
       bool available = await _sttService.init();
       if (available) {
         setState(() {
@@ -170,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } else {
-      await _stopListening(restartWakeWord: true);
+      await _stopListening();
     }
   }
 
@@ -180,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_voiceState == VoiceAppState.listeningCommand) {
       if (text.trim().isNotEmpty) {
         debugPrint("Command received: $text");
-        await _stopListening(restartWakeWord: false);
+        await _stopListening();
         setState(() {
           _voiceState = VoiceAppState.confirming;
         });
@@ -200,19 +158,18 @@ class _HomeScreenState extends State<HomeScreen> {
           lowerText.contains("yes") ||
           lowerText.contains("place")) {
         debugPrint("Confirmed!");
-        await _stopListening(restartWakeWord: false);
+        await _stopListening();
         await _ttsService.speak("Order placed.");
         _placeOrder();
-        await _wakeWordService.startListening();
         setState(() => _voiceState = VoiceAppState.idle);
       } else if (lowerText.contains("cancel") || lowerText.contains("no")) {
         debugPrint("Cancelled!");
-        await _stopListening(restartWakeWord: true);
+        await _stopListening();
         await _ttsService.speak("Cancelled.");
         _textController.clear();
       } else {
         debugPrint("Unclear response: $text");
-        await _stopListening(restartWakeWord: false);
+        await _stopListening();
         await _ttsService.speak("Please say Confirm or Cancel.");
         _toggleConfirmationListening();
       }
@@ -241,14 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _stopListening({bool restartWakeWord = true}) async {
+  Future<void> _stopListening() async {
     setState(() => _isListening = false);
     await _sttService.stop();
-    if (restartWakeWord) {
-      // Only restart wake word if we are going completely idle
-      _voiceState = VoiceAppState.idle;
-      await _wakeWordService.startListening();
-    }
+    // Only restart wake word if we are going completely idle
+    _voiceState = VoiceAppState.idle;
   }
 
   void _placeOrder() {
@@ -344,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           TextButton(
-            onPressed: () => _stopListening(restartWakeWord: true),
+            onPressed: () => _stopListening(),
             child: Text(
               "RESET",
               style: GoogleFonts.inter(
@@ -449,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_isListening) {
       return "Listening...";
     } else {
-      return "Tap to speak or say 'Hey Bad'";
+      return "Tap to speak";
     }
   }
 
@@ -516,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 56,
       child: ElevatedButton(
         onPressed: () async {
-          await _stopListening(restartWakeWord: true);
+          await _stopListening();
           _placeOrder();
         },
         style: ElevatedButton.styleFrom(

@@ -1,13 +1,13 @@
 # Voice Command AI 🎙️☕
 
-A premium Flutter application that demonstrates a fully hands-free voice command interface. Designed for high-end user experiences, it allows users to place orders (like coffee) using natural voice interaction, powered by a sophisticated state machine.
+A premium Flutter application that demonstrates a sophisticated voice command interface. Designed for high-end user experiences, it allows users to place orders (like coffee) using natural voice interaction, powered by a robust state machine.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)
 
 ## ✨ Features
 
-- **Wake Word Detection**: Activated by "Hey Bad" using Picovoice Porcupine.
+- **Tap-to-Speak**: Instant voice command activation via a premium microphone button.
 - **Natural Voice Ordering**: Uses Speech-to-Text (STT) for capturing complex commands.
 - **Voice Feedback**: Uses Text-to-Speech (TTS) for order confirmation and status updates.
 - **Interactive UI**: Features premium aesthetics with `AvatarGlow`, custom animations, and Google Fonts (`Inter`).
@@ -21,7 +21,6 @@ A premium Flutter application that demonstrates a fully hands-free voice command
 
 - Flutter SDK
 - Android Studio / VS Code
-- [Picovoice AccessKey](https://console.picovoice.ai/) (Free Tier)
 
 ### Installation
 
@@ -36,10 +35,7 @@ A premium Flutter application that demonstrates a fully hands-free voice command
     flutter pub get
     ```
 
-3.  **Configure AccessKey**:
-    Open `lib/core/constants/app_constants.dart` and replace the `picovoiceAccessKey` with your own key from the Picovoice Console.
-
-4.  **Run the app**:
+3.  **Run the app**:
     ```bash
     flutter run
     ```
@@ -49,8 +45,8 @@ A premium Flutter application that demonstrates a fully hands-free voice command
 ```text
 lib/
 ├── core/
-│   ├── constants/       # App-wide constants & API keys
-│   └── services/        # Service layer (STT, TTS, WakeWord, Notifications)
+│   ├── constants/       # App-wide constants
+│   └── services/        # Service layer (STT, TTS, Notifications)
 ├── models/              # Data models (OrderModel)
 ├── presentation/
 │   ├── screens/         # UI Screen layers (Home, All Orders)
@@ -60,14 +56,9 @@ lib/
 
 ## 📱 Release Configuration (Android)
 
-To ensure the wake word detection works in production (Release Mode), specialized configurations are included:
+To ensure smooth performance in production (Release Mode), specialized configurations are included:
 
-- **Proguard Rules**: Specific rules in `android/app/proguard-rules.pro` to prevent the Picovoice SDK from being stripped or obfuscated.
-- **Resource Optimization**: Custom `aaptOptions` in `build.gradle.kts` to ensure `.ppn` files (wake word models) are not compressed.
-- **Shrinking Settings**: `isShrinkResources` is disabled in release builds to protect native library dependencies.
-
-> [!IMPORTANT]
-> When building for release, ensure you run `flutter clean` before `flutter build apk --release` to apply the latest Proguard rules.
+- **Proguard Rules**: Specific rules in `android/app/proguard-rules.pro` to ensure native dependencies and JNI interfaces are preserved.
 
 ## 🤝 Contributing
 

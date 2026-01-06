@@ -1,9 +1,6 @@
-# Keep Picovoice classes and interfaces strictly
--keep class ai.picovoice.** { *; }
--keep interface ai.picovoice.** { *; }
--dontwarn ai.picovoice.**
+# Generic Proguard rules for Flutter
 
-# Keep JNI interfaces (very important for Porcupine native code)
+# Keep JNI interfaces
 -keepclasseswithmembernames class * {
     native <methods>;
 }
